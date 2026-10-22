@@ -1,0 +1,25 @@
+# Local credentials; only placeholder examples are committed.
+.env*
+!.env.example
+!.env.admin.example
+!.env.integration.example
+node_modules/
+.next/
+out/
+build/
+dist/
+.venv*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest_scratch*/
+.ruff_cache/
+.scratch/
+.coverage
+htmlcov/
+*.egg-info/
+*.tsbuildinfo
+test-artifacts/
+*.log
+server/supabase/.temp/
+server/supabase/.branches/
