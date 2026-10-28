@@ -1,9 +1,9 @@
 import type {
   ApiAnalysis,
+  ApiAnalysisState, ApiAnalyzeInput, ApiScenarioSaveInput, ApiReportDownload,
   ApiErrorDetail,
   ApiFieldIssue,
   ApiHealth,
-  ApiMeasurement,
   ApiMeasurementInput,
   ApiPage,
   ApiWorkflow,
@@ -12,7 +12,8 @@ import type {
   ApiWorkspace,
   ApiWorkspaceCreate,
 } from "./types";
-import { measurementInputBody, workflowCreateBody, workflowPatchBody, workspaceCreateBody } from "./validation";
+import { analyzeInputBody, measurementInputBody, scenarioSaveBody, workflowCreateBody, workflowPatchBody, workspaceCreateBody } from "./validation";
+import { decodeAnalysisState, decodeScenarioState, decodeDashboard, decodeBaselines, decodeMeasurements, decodeMeasurement } from "./results-decoder";
 
 export type AccessTokenSupplier = () => string | null | Promise<string | null>;
 export interface ApiCallOptions {
@@ -25,11 +26,11 @@ export interface ApiResult<T> {
   status: number | null;
   requestId: string | null;
 }
-export interface GainveraReadSource {
+export interface GainveraReadSource<AnalysisResponse = ApiAnalysis> {
   readonly mode: "http" | "development_fixture";
   readonly label: string;
   getWorkflow(id: string, options?: ApiCallOptions): Promise<ApiResult<ApiWorkflow>>;
-  getAnalysis(workflowId: string, options?: ApiCallOptions): Promise<ApiResult<ApiAnalysis>>;
+  getAnalysis(workflowId: string, options?: ApiCallOptions): Promise<ApiResult<AnalysisResponse>>;
 }
 export type ApiFailureKind = "http" | "network" | "aborted" | "protocol" | "auth" | "input";
 export class ApiClientError extends Error {
@@ -55,6 +56,7 @@ export interface HttpClientOptions {
   fetch?: typeof globalThis.fetch;
 }
 interface RequestOptions extends ApiCallOptions {
+  accept?: "application/json" | "text/html";
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   auth?: "required" | "none";
@@ -123,7 +125,7 @@ export function createHttpClient(config: HttpClientOptions) {
     } catch {
       throw new ApiClientError("input", "invalid_path", "Use a path within the configured API base URL.");
     }
-    const headers = new Headers({ Accept: "application/json" });
+    const headers = new Headers({ Accept: options.accept ?? "application/json" });
     const sentRequestId = requestIdFrom(options.requestId);
     if (options.requestId !== undefined) {
       if (!sentRequestId) throw new ApiClientError("input", "invalid_request_id", "The request ID must be a UUID v4.");
@@ -199,6 +201,14 @@ export function createHttpClient(config: HttpClientOptions) {
   }
 
   return {
+    async requestReport(path: string, options?: ApiCallOptions): Promise<ApiResult<ApiReportDownload>> {
+      const result = await perform(path, { ...options, accept: "text/html" });
+      if (!/^text\/html(?:;|$)/i.test(result.response.headers.get("Content-Type") ?? "") || !result.raw.trim())
+        throw new ApiClientError("protocol", "invalid_report_response", "Expected a nonempty HTML report attachment.", result.response.status, result.requestId);
+      const candidate = result.response.headers.get("Content-Disposition")?.match(/filename="?([^";]+)"?/i)?.[1];
+      const filename = candidate && /^[a-z0-9][a-z0-9._-]{0,100}\.html$/i.test(candidate) && !candidate.includes("..") ? candidate : "gainvera-audit.html";
+      return { body: { blob: new Blob([result.raw], { type: "text/html;charset=utf-8" }), filename }, status: result.response.status, requestId: result.requestId };
+    },
     async requestJson<T>(path: string, options?: RequestOptions): Promise<ApiResult<T>> {
       const result = await perform(path, options);
       if (!isObject(result.parsed) || !/\bapplication\/(?:[\w.+-]+\+)?json\b/i.test(result.response.headers.get("Content-Type") ?? ""))
@@ -214,7 +224,13 @@ export function createHttpClient(config: HttpClientOptions) {
   };
 }
 
-/** Persistence bindings are implemented by B; analysis/measurement remain planned. */
+async function decoded<T>(promise: Promise<ApiResult<unknown>>, decode: (value: unknown) => T): Promise<ApiResult<T>> {
+  const result = await promise;
+  try { return { ...result, body: decode(result.body) }; }
+  catch { throw new ApiClientError("protocol", "invalid_result_response", "The API response does not match the agreed v2 result contract.", result.status, result.requestId); }
+}
+
+/** Current companion backend API v2.0; no fallback, invented scores or local ROI. */
 export function createGainveraHttpClient(config: HttpClientOptions) {
   const http = createHttpClient(config);
   return {
@@ -232,7 +248,23 @@ export function createGainveraHttpClient(config: HttpClientOptions) {
     getWorkflow: (id: string, options?: ApiCallOptions) =>
       http.requestJson<ApiWorkflow>(`/workflows/${encodeURIComponent(id)}`, options),
     getAnalysis: (id: string, options?: ApiCallOptions) =>
-      http.requestJson<ApiAnalysis>(`/workflows/${encodeURIComponent(id)}/analysis`, options),
+      decoded(http.requestJson(`/workflows/${encodeURIComponent(id)}/analysis`, options), decodeAnalysisState),
+    analyzeWorkflow: (id: string, input: ApiAnalyzeInput, options?: ApiCallOptions) =>
+      decoded(http.requestJson(`/workflows/${encodeURIComponent(id)}/analyze`, { ...options, method: "POST", body: analyzeInputBody(input) }), decodeAnalysisState),
+    getScenario: (id: string, options: ApiCallOptions & { baselineVersion?: number } = {}) => {
+      if (options.baselineVersion !== undefined && (!Number.isSafeInteger(options.baselineVersion) || options.baselineVersion < 1)) throw new ApiClientError("input", "invalid_version", "Select a positive baseline version.");
+      return decoded(http.requestJson(`/workflows/${encodeURIComponent(id)}/scenario${options.baselineVersion === undefined ? "" : `?baseline_version=${options.baselineVersion}`}`, options), decodeScenarioState);
+    },
+    saveScenario: (id: string, input: ApiScenarioSaveInput, options?: ApiCallOptions) =>
+      decoded(http.requestJson(`/workflows/${encodeURIComponent(id)}/scenario`, { ...options, method: "PUT", body: scenarioSaveBody(input) }), decodeScenarioState),
+    listBaselines: (id: string, options: ApiListOptions = {}) =>
+      decoded(http.requestJson(`/workflows/${encodeURIComponent(id)}/baselines?${pageQuery(options)}`, options), decodeBaselines),
+    listMeasurements: (id: string, options: ApiListOptions = {}) =>
+      decoded(http.requestJson(`/workflows/${encodeURIComponent(id)}/measurements?${pageQuery(options)}`, options), decodeMeasurements),
+    getDashboard: (workspaceId: string, options?: ApiCallOptions) =>
+      decoded(http.requestJson(`/dashboard?${new URLSearchParams({ workspace_id: workspaceId })}`, options), decodeDashboard),
+    getReport: (workspaceId: string, options?: ApiCallOptions) =>
+      http.requestReport(`/reports/${encodeURIComponent(workspaceId)}`, options),
     createWorkspace: (input: ApiWorkspaceCreate, options?: ApiCallOptions) =>
       http.requestJson<ApiWorkspace>("/workspaces", { ...options, method: "POST", body: workspaceCreateBody(input) }),
     createWorkflow: (input: ApiWorkflowCreate, options?: ApiCallOptions) =>
@@ -242,6 +274,6 @@ export function createGainveraHttpClient(config: HttpClientOptions) {
     deleteWorkflow: (id: string, options?: ApiCallOptions) =>
       http.requestEmpty(`/workflows/${encodeURIComponent(id)}`, { ...options, method: "DELETE" }),
     createMeasurement: (id: string, input: ApiMeasurementInput, options?: ApiCallOptions) =>
-      http.requestJson<ApiMeasurement>(`/workflows/${encodeURIComponent(id)}/measurements`, { ...options, method: "POST", body: measurementInputBody(input) }),
-  } satisfies GainveraReadSource & Record<string, unknown>;
+      decoded(http.requestJson(`/workflows/${encodeURIComponent(id)}/measurements`, { ...options, method: "POST", body: measurementInputBody(input) }), decodeMeasurement),
+  } satisfies GainveraReadSource<ApiAnalysisState> & Record<string, unknown>;
 }

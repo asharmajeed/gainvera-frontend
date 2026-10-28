@@ -1,4 +1,5 @@
-/** API v1.1 persistence types; analysis/results endpoints are still planned. */
+/** API v2.0: companion backend domain.py/results.py, 28 October 2026.
+ * Source revisions and SHA-256 values are recorded in docs/API_SOURCE.md. */
 export type ApiRisk = "unknown" | "low" | "medium" | "high";
 export type ApiDataAvailability = "unknown" | "digital" | "manual";
 export type ApiTaskFamily =
@@ -99,6 +100,10 @@ export interface ApiPriorityComponents {
   safety: number;
 }
 export interface ApiAnalysis {
+  rules_version: string;
+  ml_reason: string | null;
+  guidance_reason: string | null;
+  safety_reasons: string[];
   id: string;
   workflow_id: string;
   baseline_version: number;
@@ -146,5 +151,72 @@ export interface ApiHealth {
   >;
 }
 
-// Dashboard remains undefined; do not invent its response shape.
-// Scenario PUT's result envelope is also only proposed, so no endpoint binding yet.
+export interface ApiWorkflowBaseline {
+  workflow_id: string;
+  baseline_version: number;
+  snapshot: ApiWorkflow;
+  created_at: string;
+}
+export interface ApiReviewedPlaybook {
+  id: string; version: string; task_family: ApiTaskFamily; title: string;
+  conditions: string; base_recommendation: ApiRecommendation; difficulty: number;
+  required_inputs: string[]; steps: string[]; example_template: string;
+  human_review: string; risks: string[]; measurement_method: string;
+  provenance: Record<string, unknown>; review_status: "reviewed";
+  reviewed_by: string; reviewed_at: string; created_at: string;
+}
+export interface ApiAnalyzeInput {
+  baseline_version: number;
+  guidance_preference?: "auto" | "reviewed_playbook";
+}
+export interface ApiAnalysisState {
+  state: "not_analyzed" | "ready" | "needs_clarification" | "needs_reanalysis";
+  current_baseline_version: number;
+  analysis: ApiAnalysis | null;
+  playbook: ApiReviewedPlaybook | null;
+}
+export interface ApiScenarioSaveInput extends ApiScenarioInput {
+  analysis_id: string;
+  /** Required, exact saved string. Null applies to the first save PER ANALYSIS. */
+  expected_updated_at: string | null;
+}
+export interface ApiScenarioState {
+  state: "not_set" | "ready" | "historical" | "needs_reanalysis";
+  current_baseline_version: number;
+  scenario: ApiScenario | null;
+  roi: ApiROI | null;
+  priority_score: number | null;
+}
+export interface ApiMeasurementResult {
+  measurement: ApiMeasurement;
+  original_baseline: ApiWorkflowBaseline;
+  net_hours_released: number;
+  net_monthly_value: number;
+  first_month_value: number;
+  provenance: "hypothetical" | "self_reported";
+}
+export interface ApiDashboardRow {
+  workflow: ApiWorkflow;
+  analysis_state: ApiAnalysisState;
+  scenario_state: ApiScenarioState;
+}
+export interface ApiCoverage {
+  ready: number; not_analyzed: number; needs_clarification: number; needs_reanalysis: number;
+  total_workflows: number; current_scenarios: number; measurement_records: number;
+}
+export interface ApiScenarioTotals {
+  baseline_monthly_hours: number | null; gross_hours_saved: number | null;
+  net_hours_released: number | null; net_monthly_value: number | null;
+  initial_investment: number | null; first_month_value: number | null;
+  covered_workflows: number; all_workflow_monthly_hours: number;
+}
+export interface ApiDashboard {
+  workspace: ApiWorkspace;
+  generated_at: string;
+  coverage: ApiCoverage;
+  scenario_totals: ApiScenarioTotals;
+  ranked_workflows: ApiDashboardRow[];
+  measurements: ApiMeasurementResult[];
+  notes: string[];
+}
+export interface ApiReportDownload { blob: Blob; filename: string }

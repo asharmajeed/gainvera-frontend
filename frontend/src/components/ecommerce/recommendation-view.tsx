@@ -1,16 +1,22 @@
 "use client";
 import { useState } from "react";
 import type { ApiWorkflow } from "@/lib/api";
+import { ApiClientError } from "@/lib/api";
 import { currentPreviewAnalysis } from "@/lib/ecommerce/preview";
 import type { PreviewState } from "@/lib/ecommerce/preview";
 import { analysisExample, failureExample, presentFailure } from "@/lib/ecommerce/response-examples";
 import type { AnalysisExample, FailureExample } from "@/lib/ecommerce/response-examples";
 import styles from "./ecommerce-preview.module.css";
 
-export function FailureNotice({ error, simulated = false, onSignIn, onReview }: {
-  error: unknown; simulated?: boolean; onSignIn?: () => void; onReview?: () => void;
+export function FailureNotice({ error, simulated = false, onSignIn, onReview, context }: {
+  error: unknown; simulated?: boolean; onSignIn?: () => void; onReview?: () => void; context?: "analysis" | "scenario" | "measurement";
 }) {
-  const failure = presentFailure(error);
+  let failure = presentFailure(error);
+  if (error instanceof ApiClientError && error.status === 409 && context) {
+    const duplicate = context === "measurement" && error.details.some((item) => item.code === "duplicate_measurement");
+    failure = { ...failure, title: duplicate ? "Measurement already exists" : context === "measurement" ? "Measurement conflict" : context === "scenario" ? "Saved scenario or analysis changed" : "Workflow baseline changed",
+      message: duplicate ? "An observation already exists for this workflow, original baseline and month. Nothing was overwritten. Refresh history and choose a different period if appropriate." : context === "measurement" ? "Refresh measurement history before retrying. Do not overwrite an existing observation." : "Your draft is retained. Refetch the latest baseline, analysis and saved scenario, review differences and explicitly reconcile before saving again." };
+  }
   const [retryNote, setRetryNote] = useState("");
   return <section className={styles.error} role="alert">
     <strong>{simulated ? "Simulated failure: " : ""}{failure.title}</strong><p>{failure.message}</p>
@@ -18,7 +24,7 @@ export function FailureNotice({ error, simulated = false, onSignIn, onReview }: 
     {failure.requestId && <p>{simulated ? "Simulated request ID" : "Request ID"}: {failure.requestId}</p>}
     {"retryable" in failure && <p>Retry hint: {failure.retryable ? "a read may be retried; check the outcome before retrying a write" : "not retryable; check input, session or service first"}.</p>}
     {failure.action === "signin" && onSignIn && <button className={styles.secondary} onClick={onSignIn}>Open sign-in status</button>}
-    {["reconcile", "correct", "reload"].includes(failure.action) && onReview && <button className={styles.secondary} onClick={onReview}>Review preview baseline</button>}
+    {["reconcile", "correct", "reload"].includes(failure.action) && onReview && <button className={styles.secondary} onClick={onReview}>{context ? "Refetch saved results" : "Review preview baseline"}</button>}
     {failure.action === "retry_read" && simulated && <button className={styles.secondary} onClick={() => setRetryNote("Simulated read retried; the example remains unavailable. No network request or write replay occurred.")}>Retry simulated read</button>}
     {retryNote && <p role="status">{retryNote}</p>}
   </section>;

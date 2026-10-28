@@ -1,8 +1,120 @@
-> Imported combined-workspace record. Use this repository's root
-> README and PROJECT_CONTEXT for current scope and setup. Historical
-> commands, configuration and process claims refer to the original copy.
-
 # Verification
+
+## Member B final combined acceptance — 28 October 2026
+
+**PASS for the local REVIEWED-PLAYBOOK FALLBACK MVP. No further member work needed.**
+B freshly ran frontend lint/typecheck, all 85 tests, production build and npm audit
+(zero vulnerabilities) with backend 200 tests/26 SQL and C release checks. The real
+combined two-user journey, exact timestamp conflict/history/report, sign-out and
+mobile/desktop passed. Application/lock/agency source remained unchanged.
+[Exact candidates, raw commands/results, cleanup and limits](../gainvera-backend/docs/FINAL_ACCEPTANCE.md).
+No live provider/deployment/store actions/training/savings claim. Working changes
+remain uncommitted/unpublished. Earlier A evidence below is preserved as history.
+
+## Member A real API v2 integration — 28 October 2026 (Asia/Karachi)
+
+This section is fresh evidence from `github/gainvera-frontend/frontend`, not an
+imported result. Backend source/provenance is in [API_SOURCE](docs/API_SOURCE.md);
+exact handoff and next acceptance are in [MVP_HANDOFF](docs/MVP_HANDOFF.md).
+
+| Actual command | Final result |
+| --- | --- |
+| npm ci --no-audit --no-fund | 409 packages installed initially; existing install-script policy retained |
+| npm run lint | Pass, zero errors/warnings |
+| npm run typecheck | Pass |
+| npm test | 85 passed, 0 failed, 0 skipped; 15 new v2 cases plus existing 70 |
+| npm run build | Pass on Next.js 16.4.3; /, /ecommerce, /ecommerce/account and not-found generated |
+| npm audit --audit-level=low | Pass; zero vulnerabilities after dependency fixes |
+| npm start | Final production build served on 3100; backend 8000 listener reused |
+
+Documentation/source checks: changed Markdown links and code fences passed;
+all five agency source hashes match the initial copy; `git diff --check` passed.
+Ignored `.env.local` contains exactly the three public configuration names.
+No backend secret or dedicated password was copied into public variables.
+
+### Real browser/API evidence
+
+Dedicated privately configured users signed in at localhost:3100 and
+127.0.0.1:3100, independent browser storage. A's fictional catalog workflow
+completed create/analyze/save/reload/restore/edit/baseline-change/reanalyze/
+old-baseline observation/dashboard/HTML download. B created, reloaded, retrieved,
+edited decimal hours, confirmed deletion and signed out. A→B same-origin switch
+showed only B's workspaces; sign-out cleared other same-origin result screens.
+Both origins ended signed out.
+
+- Initial scenario: 10 hours/month at $20, reduction 40%, setup 2 hours/$0 fees,
+  tools $10, upkeep 0.5 → server $60 monthly/$20 first month. Setting tools $500
+  returned -$430/-$470 and null payback, displayed as no positive payback.
+- Same-baseline rerun returned a new analysis head, stale scenario and null
+  first-save context; explicit acceptance/save succeeded. Two scenario tabs
+  produced a real 409 after $11 versus $12 edits. Draft $12 remained, saving was
+  disabled, and refetch/explicit reconciliation saved with the new exact token.
+  Conflict request ID: `25567817-c62c-465a-9df1-766a046ad0b2`.
+- Current baseline changed to 3×4 hours at $80. A deliberately selected old v1
+  (2.5×4 at $20) for observations 2026-09 and 2026-10, separately labelled
+  hypothetical. Server comparison stayed $60 monthly/$20 first month at old cost.
+  A duplicate returned the distinct body.period error, without overwrite;
+  request ID `0fa80436-f9fa-4919-887f-443c058592e7`.
+- Page size 1 exercised workspace, baseline and measurement cursors. Dashboard
+  included two workflows despite one loaded list row, showed unestimated nulls
+  when no current scenario existed, and kept periods separate. Refund analysis
+  with unknown risk/data returned needs_clarification, human authority and missing
+  facts even though workflow.analysis_status was analyzed.
+- Real Blob report download succeeded twice, including final 16.4.3 production
+  smoke. Downloaded HTML retained both months, original cost and provenance and
+  contained no bearer token. The safe filename fallback worked under current CORS.
+- Separate **non-browser** authenticated read probes tested each owner against
+  the other's workflow, analysis, scenario, baselines, measurements, dashboard
+  and report: **14/14 returned 404**. No password/token was printed.
+- Desktop 1440×1000 and selected mobile 390×844 were inspected. Final mobile
+  scenario save passed; page width/scroll width 390/390, active panel 315/315.
+  Overrides were reset. Screenshots are actual fictional QA records before cleanup:
+  [desktop](docs/screenshots/v2-account-desktop.png),
+  [complete dashboard](docs/screenshots/v2-dashboard-desktop.png),
+  [mobile dashboard](docs/screenshots/v2-dashboard-mobile.png),
+  [mobile scenario](docs/screenshots/v2-scenario-mobile.png).
+- Agency still showed its six existing Northstar records after reload/sign-outs;
+  recommendation and ROI opened unchanged. Source hashes of models, persistence,
+  analysis, ROI and gainvera component were retained. Fixture preview opened its
+  six labelled records and blank local scenario. No record migration or upload.
+- Only three newly named disposable workflows were deleted through confirmation
+  and successful transport; child result records cascade under B's API. Empty
+  `Disposable v2 QA A 2026-10-28`/`Disposable v2 QA B 2026-10-28` workspaces remain:
+  no workspace DELETE route. Other records preserved. Final fresh account tab
+  captured no warning/error logs.
+
+### Injected evidence and limits
+
+New tests cover envelope/provenance/null framing, raw microsecond timestamps,
+per-analysis CAS, scoped history, server totals beyond pages, Blob/auth filenames,
+clarification independent of workflow status, service failure without fake success,
+uncertain outcomes/no automatic replay, stale scenario and duplicate conflicts,
+late insert/read races, current/old 401 and late account/workspace/workflow results
+and exports. Existing adapter/auth/fixture/agency tests pass in the same run.
+
+No real forced service outage, model abstention injection, live JWT expiry wait,
+complete assistive-technology audit, backend Python/SQL-suite rerun, live AI call,
+deployment or real-world business-savings validation is claimed. B's final
+combined acceptance remains outstanding; no actual backend defect was found.
+
+Resolved check/environment failures remain visible: initial v2 type errors were
+fixed (nullable scenario, transport body type, fixture required fields); lint
+required an escaped JSX apostrophe. Initial sandbox build/dev failed Turbopack
+path canonicalization; normal-access build passed. Next.js then stopped once for
+security advisories; retry passed with warning, registry audit confirmed Next/Zod
+critical/high findings. Patched Next.js/lint config to 16.4.3 and Zod to 4.6.7 with
+scripts disabled; final build and audit pass without the warning. Initial audit
+DNS was blocked in sandbox; permitted network access succeeded. First ownership
+probe lacked httpx in combined venv; standard-library retry passed. Browser
+selector-label/focus and hidden-tab viewport attempts were corrected with fresh
+UI state and selected-tab sizing. A premature agency read before hydration showed
+no matching count; waiting for the stored six-record view confirmed preservation.
+These were not hidden as successful checks. No backend environment was modified.
+
+---
+
+The following entries are imported historical evidence from the original
+combined workspace unless otherwise stated; they are not fresh runs here.
 
 ## Repository copy preparation — 22 October 2026 (Asia/Karachi)
 

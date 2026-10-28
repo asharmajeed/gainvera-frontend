@@ -1,12 +1,16 @@
-> Frontend reference snapshot. The backend repository owns the
-> authoritative API contract; coordinate updates through B.
-
 # Gainvera API contract for Member A
 
-Persistence/results contract v1.2, 21 October 2026. Backend ownership: Member B. Frontend
+> Reference snapshot of B's local API v2, adopted 28 October 2026.
+> [Source revision/hashes](API_SOURCE.md). Frontend implementation and next-member
+> status are maintained in [A's current handoff](MVP_HANDOFF.md).
+
+Persistence/results contract v2.0, 27 October 2026. Backend ownership: Member B. Frontend
 ownership: Member A. Discuss breaking changes before changing field names or
-units. The executable draft types are in `server/app/contracts/domain.py`.
-Wire types are mirrored in `frontend/src/lib/api/types.ts`. The preserved agency
+units. Executable types are in `server/app/contracts/domain.py` and
+`server/app/contracts/results.py`. The v2 result/state extension is defined in
+[Results API v2](RESULTS_API_V2.md), including concurrent saves and examples.
+Member A must update the companion frontend's `frontend/src/lib/api/types.ts`
+for that extension. The preserved agency
 UI types/calculations live in `frontend/src/lib/models.ts` and `frontend/src/lib/roi.ts`;
 they are not the e-commerce API contract. All paths here are relative to the project root.
 
@@ -31,28 +35,36 @@ Local base URL: `http://127.0.0.1:8000`. Frontend: `http://localhost:3100`.
 | `POST /workflows/{id}/measurements` | Implemented; 201 saved measurement | Verified bearer |
 | `GET /workflows/{id}/measurements` | Implemented measurement page, all versions | Verified bearer |
 | `GET /playbooks` | Implemented; reviewed, read-only library | Verified bearer |
-| Analysis/scenario/ROI/dashboard/report routes below | Planned; JSON 404 | Future |
+| `POST /workflows/{id}/analyze` | Implemented persisted AnalysisState | Verified bearer |
+| `GET /workflows/{id}/analysis` | Implemented explicit current/stale/clarification state | Verified bearer |
+| `PUT /workflows/{id}/scenario` | Implemented saved ScenarioState + authoritative ROI | Verified bearer |
+| `GET /workflows/{id}/scenario` | Implemented current or explicitly historical restoration | Verified bearer |
+| `GET /dashboard?workspace_id=<uuid>` | Implemented complete owner-scoped totals | Verified bearer |
+| `GET /reports/{workspace_id}` | Implemented escaped HTML attachment | Verified bearer |
 
-OpenAPI describes health and the eleven implemented business operations above.
+OpenAPI describes health and the seventeen implemented business operations above.
 The agency frontend remains local. Member A's separate `/ecommerce` preview
 uses explicit in-memory fixtures. Member A's `/ecommerce/account` now binds real
 Supabase email/password sessions and workspace/workflow CRUD to these routes.
 Fixtures and account records remain separate; no wire schemas changed for that binding.
-Analysis/scenario routes remain planned. A deterministic ROI Python service is
-implemented, but no ROI HTTP endpoint is supplied. Measurement/history routes
-return saved facts; they do not perform analysis or generation.
+Analysis/scenario, dashboard and report routes now work on the backend. Scenario
+PUT/GET returns authoritative ROI; no separate `/roi` route is needed. The trusted
+classifier and six exact reviewed playbooks are integrated. The user selected
+the clearly labelled reviewed-playbook fallback; live OpenAI is not configured
+or verified. Measurement/history routes return saved facts.
 
 Frontend preparation, 20 October 2026: Member A added a separate
-[`frontend/src/lib/api/` foundation](../frontend/src/lib/api/README.md) with
+`frontend/src/lib/api/` foundation (gainvera-frontend: `frontend/src/lib/api/README.md`) with
 TypeScript types, field adapters, HTTP transport and explicit read-only fixtures.
 The follow-up UI task added workspace/workflow preview screens and aligned
 PATCH, pagination and health types with v1.1. Local edits are explicitly fixtures,
 not database/Auth records. No wire schemas changed. Dashboard, unanalysed-analysis
-responses and scenario-result shapes remain planned. See [A's handoff](MEMBER_A_BACKEND_HANDOFF.md).
+responses were pending at that stage; their v2 shapes are now implemented.
+See [A's handoff](MEMBER_A_BACKEND_HANDOFF.md) for the remaining frontend assignment.
 
 Health returns `status: "ok"` for process liveness and four dependencies
 (`database`, `authentication`, `ml`, `ai`). Database/authentication have
-`status="not_checked"`; ML/AI have `status="not_implemented"`. All have
+`status="not_checked"`; ML/AI also have `status="not_checked"`. All have
 `checked=false`. Health checks no external service and does not prove readiness.
 
 ## Shared conventions
@@ -155,22 +167,25 @@ errors are sanitized. A database outage never becomes a success with empty data.
 Records owned by another user and nonexistent IDs both return 404. An owned,
 empty workspace legitimately returns `items=[]`.
 
-## Planned analysis and results routes
+## Implemented analysis and results routes
 
 All following routes require verified bearer authentication and workspace
-ownership. None of the following HTTP routes are implemented yet.
+ownership. Full inputs, read states, dashboard fields, safeguards and failure
+semantics are in [Results API v2](RESULTS_API_V2.md).
 
-| Method and route | Planned result |
+| Method and route | Implemented result |
 | --- | --- |
 | `POST /workflows/{id}/analyze` | 200 analysis for the current baseline |
 | `GET /workflows/{id}/analysis` | 200 current analysis; not-analyzed state handled explicitly |
 | `PUT /workflows/{id}/scenario` | 200 scenario, ROI and recalculated priority |
+| `GET /workflows/{id}/scenario` | 200 ScenarioState; optional historical baseline selection |
 | `GET /dashboard?workspace_id=<uuid>` | 200 owner-scoped totals and ranked entries |
 | `GET /reports/{workspace_id}` | 200 escaped UTF-8 HTML report |
 
-Do not register success-shaped stubs. Scenario PUT's result below is proposed;
-the dashboard shape and the response for an unanalysed workflow need a future
-contract before Member A binds them.
+These are persisted results, not stubs. Read envelopes distinguish not analyzed,
+ready, clarification, stale and historical states. Missing model/artifact/schema
+or approved guidance returns 503; no invented analysis is saved. Provider failure
+can return a successful analysis with explicitly labelled reviewed fallback.
 
 ## Implemented list, edit and delete behavior
 
@@ -242,7 +257,7 @@ Read adds `id`, positive integer `baseline_version`, `analysis_status`, UTC
 and preserve the original baseline for historical measurements. Do not silently
 reuse a previous analysis or compare measurements against changed inputs.
 
-## Planned analysis object
+## Analysis object (inside AnalysisState)
 
 ```json
 {
@@ -254,27 +269,31 @@ reuse a previous analysis or compare measurements against changed inputs.
   "priority_score": 0,
   "priority_components": {"value":0,"feasibility":0,"readiness":20,"safety":30},
   "mode": "needs_clarification",
-  "ml_status": "unavailable",
-  "ml_confidence": null,
-  "model_version": null,
+  "ml_status": "abstained",
+  "ml_confidence": 0.42,
+  "model_version": "ecommerce-family-v1.0.0",
   "playbook_id": null,
   "playbook_version": null,
   "provider_model": null,
   "prompt_version": null,
-  "summary": "The classifier is unavailable. No model prediction was made.",
+  "rules_version": "ecommerce-rules-v1",
+  "ml_reason": "low_confidence",
+  "guidance_reason": "clarification_required",
+  "safety_reasons": [],
+  "summary": "Clarify the primary task, risk and available data before choosing an improvement.",
   "steps": [],
   "human_review": "Clarify the task before choosing an improvement.",
   "risks": ["No validated workflow match is available."],
-  "missing_information": ["The classifier must be supplied and checked."],
+  "missing_information": ["Describe one primary output and the available inputs."],
   "created_at": "2026-10-19T12:00:00Z"
 }
 ```
 
-This is an **illustration of a future response**, not a current model result or
-reviewed playbook. All confidence/provenance values stay null when unavailable.
+This is a fictional schema example, not an actual prediction for the sample
+workflow. Actual unavailable inference returns 503 without a new saved analysis.
 The model's score is not the business priority and not a probability of savings.
 
-Future successful modes: `ai_assisted` (live grounded generation),
+Modes: `ai_assisted` (validated live selection from approved steps),
 `reviewed_playbook_fallback` (approved static guidance), `needs_clarification`.
 `ml_status` is independently `recognized`, `abstained` or `unavailable`.
 Risk rules choose the final recommendation, never the LLM alone. High-risk
@@ -282,11 +301,14 @@ decisions retain human authority. Unknown tasks receive no invented reduction.
 
 ## Scenario and ROI objects
 
-Planned scenario PUT input; no reduction default is invented:
+Scenario PUT input; no reduction default is invented. The analysis ID below is
+illustrative: use the ID returned by this workflow's current ready analysis.
 
 ```json
 {
   "baseline_version": 1,
+  "analysis_id": "98122d0b-bafd-4c66-8f08-49dd91467b7e",
+  "expected_updated_at": null,
   "reduction_percent": 40,
   "setup_hours": 2,
   "setup_fees": 0,
@@ -298,12 +320,13 @@ Planned scenario PUT input; no reduction default is invented:
 `reduction_percent` is 0–100. Setup/maintenance hours are 0–744. Other amounts
 are 0–1000000 USD. All are finite numbers. Read adds `id`, `workflow_id`,
 `analysis_id`, `updated_at` and `assumption_source` (`user_scenario` or
-`illustrative_sample`). Proposed PUT result is
-`{"scenario": <Scenario>, "roi": <ROI>, "priority_score": 0}`; its score is
-computed by the future backend rather than fixed to this illustration.
+`illustrative_sample`). PUT returns ScenarioState: `state`, current version,
+`scenario`, `roi`, and `priority_score`. `expected_updated_at` is required:
+null for first save, then the exact saved timestamp for edits. ScenarioInput
+remains the six assumption fields; ScenarioSaveInput adds the concurrency fields.
 
 For the sample workflow (10 baseline hours, USD 20/hour), the implemented Python
-service returns the following. This is not a current HTTP endpoint result:
+service and scenario HTTP flow return the following ROI:
 
 ```json
 {
@@ -372,8 +395,8 @@ baseline of the same workflow. A current-input edit during a measurement write
 does not change that selection. A missing version is never replaced with the
 latest baseline. History and measurements remain until explicit workflow deletion.
 
-The ROI engine is a typed Python service; this phase adds no ROI, analysis or
-scenario HTTP endpoint. These routes do not execute a classifier or AI.
+The ROI engine is also used by scenario PUT/GET. The history/measurement routes
+themselves do not execute a classifier or AI.
 
 Measurement POST input (fictional example):
 
@@ -416,7 +439,8 @@ mismatches. See [Python usage and edge cases](ROI_SERVICE.md).
 `GET /playbooks` returns `{"items": [...], "next_cursor": null}` for authenticated
 users. Only `review_status="reviewed"` rows are visible. Ordinary users cannot
 insert, update or delete playbooks, analyses, scenarios, audit events or baseline
-snapshots. Analysis/scenario write permissions await the trusted analysis phase.
+snapshots directly. Computed result writes use the protected server-authorized
+RPC path described in [Results API v2](RESULTS_API_V2.md), with the user's JWT.
 
 The reviewed object has: `id` and `version` (strings, 1–100; composite identity),
 `task_family` (six-family enum), `title` (1–100), `conditions` (up to 3000),
@@ -424,8 +448,9 @@ The reviewed object has: `id` and `version` (strings, 1–100; composite identit
 `required_inputs`, `steps`, `risks` (string arrays), `example_template`,
 `human_review`, `measurement_method` (strings), `provenance` (JSON object),
 `review_status` (`reviewed`), `reviewed_by` (string), `reviewed_at` and `created_at`
-(UTC timestamps). See the database guide (gainvera-backend: `server/supabase/README.md`) for seed
-limits and review requirements. This stage seeds no playbooks or review claims.
+(UTC timestamps). See the [database guide](../../gainvera-backend/server/supabase/README.md) for seed
+limits and review requirements. C's exact reviewed v1.0.0 package was imported
+administratively on 27 October; no drafts were promoted or approval recreated.
 
 The library is sorted by `(id, version)` and limited to 100 reviewed versions;
 more than 100 returns 503 rather than silently truncating. No cursor/query
@@ -434,7 +459,7 @@ valid and does not imply that guidance or the AI integration is ready.
 
 ## Frontend mapping from the current demo
 
-| Current TypeScript field | Planned API field / handling |
+| Current TypeScript field | API field / handling |
 | --- | --- |
 | `Workflow.business` | `Workspace.name`; workflow references `workspace_id` |
 | `hours`, `frequency`, `hourlyCost` | `hours_per_occurrence`, `occurrences_per_month`, `hourly_cost` |
@@ -453,17 +478,11 @@ across the project without review. Do not upload browser records automatically.
 
 ## Next handoff
 
-Member A can now bind Supabase login, workspace selection and workflow CRUD to
-the implemented routes. The prepared client's PATCH/page/health additions are
-now present; bind them using [the short handoff](MEMBER_A_BACKEND_HANDOFF.md).
-Keep fixture use explicit for planned analysis/results; never fall back to
-fixtures after an HTTP failure. Model artifacts and reviewed playbooks are
-supplied by Member C, not generated by this phase.
-
-The v1.2 extension also supplies baseline/history and measurement routes above.
-A can reuse its Workflow type for each baseline `snapshot` and its existing
-Measurement types for create/read. Add the two paginated read bindings explicitly;
-the existing scenario, analysis, dashboard and report calls remain future work.
+Member A next connects the result/history/measurement/dashboard/report screens
+using [the backend handoff](MEMBER_A_BACKEND_HANDOFF.md) and [MVP handoff](MVP_HANDOFF.md).
+Preserve existing login/storage and labelled local fixtures. Never substitute
+fixtures after an HTTP failure. Update client v2 envelopes, scenario timestamp
+checks and exact baseline selection, then run the two-user real browser flow.
 
 Implemented PATCH example, using a fictional workflow's current version:
 

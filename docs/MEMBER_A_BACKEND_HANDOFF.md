@@ -1,98 +1,83 @@
-# Member A: connect login and workflow storage
+# Member A backend handoff — API v2.0
 
-Updated 21 October 2026 for API v1.2: baseline history and measurement routes
-are now working. Existing workspace/workflow wire fields and behavior remain
-compatible. The ROI engine is a Python service, with no ROI HTTP endpoint yet.
+> Snapshot of B's incoming assignment, preserved as source evidence.
+> A has now implemented it. [Current handoff to B](MVP_HANDOFF.md) records
+> the next assignment; [API source](API_SOURCE.md) identifies this snapshot.
 
-The backend saves workspaces/workflows in Supabase and enforces one owner per
-workspace. Your demo and prepared API module are preserved. Full fields and
-examples: [API contract](api-contract.md).
+28 October 2026. **A is next.** B's result backend is ready for frontend
+integration using the user-selected **reviewed-playbook fallback**. Whole-MVP
+acceptance still requires your real browser/API checks. Do not start C's work.
+Read [MVP handoff](MVP_HANDOFF.md), [API contract](api-contract.md) and
+[result state/field reference](RESULTS_API_V2.md). Existing storage routes and
+wire field names are preserved. No frontend code was changed by B.
 
-Member A status, 21 October 2026: real email/password Auth and workspace/workflow
-CRUD are bound at `/ecommerce/account`, with two-account browser verification.
-Public environment names and Node 22+ setup: [frontend README](../frontend/README.md).
-Remaining scope and verification limits: [A's handoff](MEMBER_A_FRONTEND_HANDOFF.md).
-The v1.2 history/measurement bindings below remain a separate frontend task.
+## Authenticate and call
 
-## Authenticate
+Continue using the existing Supabase Auth session. Supply its current
+**access_token** on every call: `Authorization: Bearer <access_token>`.
+The SDK renews sessions; after a 401 refresh/re-authenticate. Never send the
+refresh token, user-supplied owner ID, DB URI or private server signing/API keys.
+The backend validates Auth online and uses that same user JWT for persistence.
 
-Use Supabase Auth in the frontend with the project URL and publishable key.
-After sign-in, supply the current session's **access_token** through the prepared
-`createHttpClient` token-supplier hook on every request:
+API: `http://127.0.0.1:8000`. Allowed frontend origins: localhost/127.0.0.1 on
+3100. CORS allows PUT as well as existing verbs, JSON/bearer headers and exposes
+X-Request-ID. No cookie credentials. API process is left running at verification
+time; identify the port listener before starting another instance.
 
-```http
-Authorization: Bearer <current Supabase access_token>
-Content-Type: application/json
-```
+## Your exact next assignment
 
-The backend verifies the token independently online using Auth's getUser endpoint.
-Do not send refresh tokens, owner IDs, database URI/password or service keys.
-The Supabase client manages session renewal; on 401 refresh/re-authenticate.
-No frontend Auth package, login UI or environment names were added by B.
+1. Update companion frontend v2 wire types/client/adapters. Analysis and scenario
+   now return **state envelopes**, not bare objects. Add scenario GET restoration.
+   Bind real results only in account mode; preserve agency/local fixture views.
+2. Keep workflow intake/storage working. After saving facts, POST
+   `/workflows/{id}/analyze` with its current `baseline_version` and preferably
+   `guidance_preference: "reviewed_playbook"` for this selected MVP mode.
+   GET `/workflows/{id}/analysis` restores it after reload.
+3. Handle analysis states explicitly: not_analyzed, ready, needs_clarification,
+   needs_reanalysis. Show missing information, safety reasons, reviewed conditions,
+   required inputs, human review, model/playbook/rules versions and fallback label.
+   Recognized family/confidence does not mean safe automation or guaranteed value.
+   Workflow analysis_status=analyzed can include clarification; use the state envelope.
+4. Let the user enter all ROI assumptions; no guessed reductions. PUT
+   `/workflows/{id}/scenario` with current analysis_id/baseline plus all six
+   assumption fields and **expected_updated_at**. Null means first save for that
+   analysis; on edits send the exact saved timestamp. GET scenario restores the
+   result and authoritative ROI. Preserve negatives and null payback; round only
+   for display. Rerunning analysis makes prior scenarios stale, even on the same
+   baseline. If restored scenario.analysis_id differs from the current analysis,
+   a new scenario save uses null, not the old analysis's saved timestamp.
+5. Bind paginated GET baselines, POST measurement and paginated GET measurements.
+   Always select the exact baseline version deliberately. Show original time/cost;
+   historical records must not be recalculated from today's workflow. Duplicate
+   workflow/version/month is 409, missing baseline 404. Mark is_demo as hypothetical;
+   other outcomes are self-reported, unverified. No measurement edit/delete exists.
+6. Use GET `/dashboard?workspace_id=<uuid>` for complete totals/ranking. Its fields
+   are specified in RESULTS_API_V2.md. Null estimates mean unestimated. Coverage
+   identifies excluded stale/clarification results. Do not sum only the visible
+   workflow page, combine measurement periods or treat capacity value as cash.
+7. Download GET `/reports/{workspace_id}` with the bearer header using fetch/blob.
+   An unauthenticated anchor cannot attach the token. Use the server attachment
+   filename or a safe fixed filename. Never put the token in a URL.
+8. Verify two actual accounts in the browser: save/analyze/reload/restore scenario,
+   edit ROI, change baseline and reanalyze, select an old baseline for a result,
+   see correct complete dashboard/report, and confirm B cannot access A's IDs.
+   Check sign-out/account switch clears all selected state and preserve the demo.
+   Test 409 reconciliation, 401 and dependency failure states without fixtures.
 
-Local API: `http://127.0.0.1:8000`. Allowed frontend origins:
-`http://localhost:3100` and `http://127.0.0.1:3100`. CORS supports JSON, bearer
-headers, PATCH/DELETE, and exposes `X-Request-ID`. This API uses no cookies.
+All business failures use the existing error envelope + request ID. 401 means
+sign in; 404 means missing/inaccessible; 409 means refetch/reconcile; 422 means
+fix fields; 503 means show service unavailable. Never silently substitute local
+fixtures after an HTTP error. A timeout after POST/PUT may have saved data:
+refetch before retrying. Repeated analyze is not idempotent.
 
-## Call this flow
+## Ready inputs, remaining limits
 
-1. `GET /workspaces` returns `items` and nullable `next_cursor`.
-2. `POST /workspaces` with `{"name":"NovaCart","currency":"USD"}` if needed.
-   Use the returned `id`; never supply an owner.
-3. `POST /workflows` with that `workspace_id` and documented intake fields.
-   Returns the complete workflow, version 1, `not_analyzed`.
-4. `GET /workflows?workspace_id=<id>` or `GET /workflows/{id}` retrieves saved
-   records. Lists accept `limit=1..100` (default 50) and an opaque `cursor`.
-   `next_cursor=null` means the end.
-5. `PATCH /workflows/{id}` with expected version and editable fields, e.g.
-   `{"baseline_version":1,"hourly_cost":25}`. Changed facts increment the version
-   and set `needs_reanalysis`. On 409 refetch and let the user reconcile their
-   edit. Omit unchanged fields; nulls, protected fields and empty edits fail.
-6. `DELETE /workflows/{id}` returns 204 with no JSON. Confirm in the UI first:
-   this removes the workflow's history/results too.
-7. Optional `GET /playbooks`: reviewed read-only library. Empty means no reviewed
-   content was imported, not a completed analysis or successful AI integration.
-
-Analysis/scenario/ROI/dashboard/report HTTP routes remain planned. Keep their
-fixtures explicitly labelled. Never substitute fixtures after an HTTP failure.
-Do not automatically upload old browser records or convert legacy measurements.
-
-## Update the prepared client/types
-
-The prepared client already supports v1.1 pages/PATCH/health. Keep those working.
-The additional v1.2 bindings needed when A connects results are:
-
-- `GET /workflows/{id}/baselines`: `ApiPage<ApiWorkflowBaseline>`, where an item
-  has `workflow_id`, positive `baseline_version`, `snapshot: ApiWorkflow`, and
-  `created_at`. Snapshot contains original cost/time/frequency and task facts.
-  Fetch pages until `next_cursor=null` to find the explicitly selected version.
-- `POST /workflows/{id}/measurements`: existing ApiMeasurementInput, returns
-  ApiMeasurement directly with 201. The prepared createMeasurement call can use
-  this real route; its UI binding remains A's work.
-- `GET /workflows/{id}/measurements`: `ApiPage<ApiMeasurement>`, all versions.
-  Join each record to the matching original snapshot, never today's workflow.
-- Both lists accept limit 1–100, default 50, and a route/user/workflow-scoped
-  cursor. Baseline order is version ascending; measurement order is creation
-  time then UUID ascending. Do not send a baseline cursor to a measurement list.
-- Retrospective measurement POST deliberately accepts an older existing version;
-  no silent rebasing. Missing/foreign workflow or missing baseline is 404,
-  duplicate workflow/version/month 409, invalid/generated fields 422. Existing
-  records are not overwritten on duplicates. Show the selected version and cost
-  before saving. No PATCH/DELETE measurement route exists in this phase.
-- Health continues to report database/auth `not_checked`, ML/AI `not_implemented`,
-  with every `checked` flag false. History endpoints are not a readiness probe.
-- Keep page/query state per user/workspace; clear selected data on sign-out or
-  account change. Cursors do not authenticate or grant cross-user access.
-- Handle 401 login, 404 missing/inaccessible, 409 stale edit, 422 validation and
-  503 dependency failure. Keep request IDs for safe diagnostics. A network-failed
-  POST may have saved data: refetch before blindly retrying; POST idempotency is
-  not implemented yet.
-
-A verified two real browser sessions for login and workspace/workflow CRUD.
-History/measurement UI and the remaining results flow need their own integration
-checks. Backend tests verify Auth/storage/RLS, not future frontend bindings.
-
-Full v1.2 examples and error semantics are in [the API contract](api-contract.md).
-[ROI service documentation](ROI_SERVICE.md) contains the authoritative backend
-formulas and tested example. Your labelled local preview is not an HTTP result;
-future scenario integration will call the backend calculation service.
+C's classifier and six exact reviewed v1.0.0 playbooks are integrated. No C change
+is needed for this handoff. B verified real Auth/RLS/native signed persistence,
+concurrent edits, original-baseline calculations and standalone HTTP. Provider
+branches were tested with explicit mocks; **no real OpenAI call was made**.
+Missing provider credentials use labelled reviewed guidance. Health reports all
+four dependencies not_checked/checked=false; it is never an external readiness
+indicator. Browser integration, deployment and real-store validation are not
+claimed. Return your updated context/log/verification and precise handoff to B
+for final combined acceptance after finishing the frontend.

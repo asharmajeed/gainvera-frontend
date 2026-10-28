@@ -1,9 +1,11 @@
 import type { Assumptions, Workflow } from "../models";
 import type {
   ApiAnalysis,
+  ApiAnalysisState,
   ApiAnalysisStatus,
   ApiMeasurement,
   ApiScenario,
+  ApiScenarioState,
   ApiWorkflow,
 } from "./types";
 import { measurementInputBody, scenarioInputBody, workflowCreateBody, workflowPatchBody } from "./validation";
@@ -139,6 +141,10 @@ export function measurementFromApi(record: ApiMeasurement) {
 /** Never maps legacy text similarity to ML confidence or invents provenance. */
 export function analysisFromApi(record: ApiAnalysis) {
   return {
+    rulesVersion: record.rules_version,
+    mlReason: record.ml_reason,
+    guidanceReason: record.guidance_reason,
+    safetyReasons: [...record.safety_reasons],
     id: record.id,
     workflowId: record.workflow_id,
     baselineVersion: record.baseline_version,
@@ -161,4 +167,13 @@ export function analysisFromApi(record: ApiAnalysis) {
     missingInformation: [...record.missing_information],
     createdAt: record.created_at,
   };
+}
+
+/** No Date conversion: PostgreSQL's timestamp precision is the concurrency token. */
+export function scenarioEditContext(analysis: ApiAnalysisState, saved: ApiScenarioState) {
+  if (analysis.state !== "ready" || !analysis.analysis) return null;
+  const current = saved.state === "ready" && saved.scenario?.analysis_id === analysis.analysis.id &&
+    saved.scenario.baseline_version === analysis.current_baseline_version;
+  return { baseline_version: analysis.current_baseline_version, analysis_id: analysis.analysis.id,
+    expected_updated_at: current ? saved.scenario!.updated_at : null };
 }

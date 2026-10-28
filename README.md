@@ -11,10 +11,16 @@ gainvera-frontend/
   docs/                 Team documentation and API reference snapshot
   AGENTS.md
   PROJECT_CONTEXT.md
-  VERIFICATION.md       Imported, dated verification from the combined workspace
+  VERIFICATION.md       Current checks, followed by dated historical evidence
   COPY_MANIFEST.json    Original hashes for unchanged non-Markdown source files
   .gitignore
 ```
+
+**Final local acceptance: PASS, reviewed-playbook fallback (28 October 2026).**
+A integration and B combined acceptance are complete. No further member
+implementation needed. [Exact candidate/results](../gainvera-backend/docs/FINAL_ACCEPTANCE.md).
+Source/locks are unchanged by acceptance; changes remain uncommitted/unpublished.
+Live provider/deployment/store actions/savings validation are outside this scope.
 
 ## Setup
 
@@ -42,9 +48,11 @@ Open http://localhost:3100. The agency demo at `/` and fixture preview at
 configured public variables, internet access and the companion API on port 8000.
 Local Auth/API integration uses port 3100; port 3101 is fixture-only.
 
-Real sign-in and workspace/workflow CRUD are integrated. Account analysis,
-scenarios, measurements, dashboards and reports remain unconnected. Fixture
-results do not establish working account services.
+Real sign-in, workspace/workflow CRUD and B's v2 result flow are integrated:
+reviewed analysis, saved scenarios with authoritative ROI, original-baseline
+measurements, a complete server dashboard and authenticated HTML downloads.
+The fixture preview remains simulated. Read the [current handoff](docs/MVP_HANDOFF.md)
+for actual live checks, remaining limits and B's final combined acceptance task.
 
 ## Checks
 
@@ -57,7 +65,7 @@ npm test
 npm run build
 ```
 
-No new application build or frontend suite is implied by the repository split.
+The current v2 assignment ran these checks and live two-account browser checks.
 See [verification](VERIFICATION.md), [detailed setup](frontend/README.md),
 [frontend handoff](docs/MEMBER_A_FRONTEND_HANDOFF.md) and
 [API reference](docs/api-contract.md).
@@ -65,8 +73,9 @@ See [verification](VERIFICATION.md), [detailed setup](frontend/README.md),
 ## Team workflow
 
 Work on task branches in this repository. B owns the authoritative API contract
-in `gainvera-backend`; this repository includes an initial reference snapshot.
-Record the backend contract version or commit used whenever updating that copy.
+in `gainvera-backend`; this repository includes a v2 reference snapshot.
+[API source](docs/API_SOURCE.md) records B's local revision and source hashes;
+the required backend implementation is uncommitted and must be shared separately.
 Update this repository's context and changelog with each task. The original
 combined folder and these copies do not synchronize automatically. Once the
 team adopts the two repositories, make future frontend changes here and backend

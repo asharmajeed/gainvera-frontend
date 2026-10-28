@@ -65,6 +65,7 @@ function historicalState() {
   const state = createPreviewState();
   const workflow = { ...state.workflows[0], analysis_status: "analyzed" as const };
   const analysis: ApiAnalysis = {
+    rules_version: "SIMULATED-NO-RULES-RUN", ml_reason: null, guidance_reason: null, safety_reasons: [],
     id: "synthetic-analysis", workflow_id: workflow.id, baseline_version: 1,
     task_family: null, recommendation: "LEAVE ALONE", priority_score: 0,
     priority_components: { value: 0, feasibility: 0, readiness: 20, safety: 30 },

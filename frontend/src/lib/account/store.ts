@@ -27,9 +27,10 @@ export interface AccountState {
   error: unknown;
   notice: string;
   pageSize: number;
+  dataRevision: number;
 }
 const emptyState = (): AccountState => ({ phase: "restoring", user: null, generation: 0, authBusy: false, authMessage: "", signOutFailed: false,
-  workspaces: page(), workspaceId: null, workflows: page(), detail: null, busy: false, error: null, notice: "", pageSize: 10 });
+  workspaces: page(), workspaceId: null, workflows: page(), detail: null, busy: false, error: null, notice: "", pageSize: 10, dataRevision: 0 });
 const serverState = emptyState();
 export class AccountChangedError extends Error { constructor() { super("Session or workspace changed. No result was displayed."); } }
 function merge<T extends { id: string }>(old: T[], incoming: T[]) {
@@ -131,19 +132,29 @@ export class AccountStore {
       this.blocked = true; this.clear("signed_out", `Your session expired or was rejected. Account data has been cleared. Sign in again; the failed request was not replayed.${error.requestId ? ` Request ID: ${error.requestId}.` : ""}`);
     }
   }
-  private async request<T>(operation: (api: Api, options: ApiCallOptions) => Promise<ApiResult<T>>) {
-    if (!this.api || this.blocked || this.stopped) throw new AccountChangedError();
+  private async request<T>(operation: (api: Api, options: ApiCallOptions) => Promise<ApiResult<T>>, guard: () => boolean = () => true, signal?: AbortSignal) {
+    if (!this.api || this.blocked || this.stopped || !guard() || signal?.aborted) throw new AccountChangedError();
     const scope = this.scope, generation = this.state.generation;
     const controller = new AbortController(); this.controllers.add(controller);
+    const abort = () => controller.abort(); signal?.addEventListener("abort", abort, { once: true });
     try {
       const result = await operation(this.api, { signal: controller.signal, requestId: crypto.randomUUID() });
-      if (scope !== this.scope || generation !== this.state.generation || this.stopped) throw new AccountChangedError();
+      if (scope !== this.scope || generation !== this.state.generation || this.stopped || !guard() || signal?.aborted) throw new AccountChangedError();
       return result.body;
     } catch (error) {
-      if (scope !== this.scope || generation !== this.state.generation || this.stopped) throw new AccountChangedError();
+      if (scope !== this.scope || generation !== this.state.generation || this.stopped || !guard() || signal?.aborted) throw new AccountChangedError();
       this.fail(error); throw error;
-    } finally { this.controllers.delete(controller); }
+    } finally { signal?.removeEventListener("abort", abort); this.controllers.delete(controller); }
   }
+  /** Result controllers reuse the same token supplier and failure handling. No token is exposed. */
+  requestResults<T>(operation: (api: Api, options: ApiCallOptions) => Promise<ApiResult<T>>, guard: () => boolean, signal: AbortSignal) {
+    return this.request(operation, guard, signal);
+  }
+  acceptResultWorkflow(record: ApiWorkflow) {
+    if (record.workspace_id !== this.state.workspaceId || this.state.detail?.id !== record.id) return;
+    this.set({ detail: record, workflows: { ...this.state.workflows, items: this.state.workflows.items.map((item) => item.id === record.id ? record : item) } });
+  }
+  resultsChanged() { this.set({ dataRevision: this.state.dataRevision + 1 }); }
   async loadWorkspaces(more = false) {
     if (!this.api || (more && (!this.state.workspaces.cursor || this.state.workspaces.loading))) return;
     if (!more) { this.invalidate(); this.set({ workspaceId: null, workflows: page(), detail: null }); }
@@ -199,7 +210,7 @@ export class AccountStore {
     try { const detail = await this.readWorkflow(id); if (this.reads.get("detail") === sequence) this.set({ detail, notice: "" }); }
     catch (error) { if (!(error instanceof AccountChangedError) && this.reads.get("detail") === sequence) this.set({ error, notice: "" }); }
   }
-  closeDetail() { this.reads.set("detail", ++this.nextRead); this.set({ detail: null, notice: "" }); }
+  closeDetail() { this.reads.set("detail", ++this.nextRead); this.set({ detail: null, notice: "", dataRevision: this.state.dataRevision + 1 }); }
   private async write<T>(operation: () => Promise<T>, notice: string) {
     if (this.state.busy) throw new Error("Wait for the current change to finish.");
     const scope = this.scope, generation = this.state.generation;
@@ -228,10 +239,11 @@ export class AccountStore {
     if (original && !patch) { this.set({ notice: "No changes to save." }); return; }
     const result = await this.write(() => this.request((api, options) => original
       ? api.patchWorkflow(original.id, patch!, options)
-      : api.createWorkflow(workflowToCreateRequest(draft, workspaceId), options)), "Workflow saved. Analysis and results are not connected.");
+      : api.createWorkflow(workflowToCreateRequest(draft, workspaceId), options)), "Workflow saved. Open it to analyze the current baseline.");
     if (generation !== this.state.generation || scope !== this.scope) throw new AccountChangedError();
     this.reads.set("workflows", ++this.nextRead); this.reads.set("detail", ++this.nextRead);
     this.set({ detail: null, workflows: { ...this.state.workflows, loading: false, items: merge(this.state.workflows.items, [result]) } });
+    this.resultsChanged();
   }
   async deleteWorkflow(id: string) {
     const generation = this.state.generation, scope = this.scope;
@@ -239,5 +251,6 @@ export class AccountStore {
     if (generation !== this.state.generation || scope !== this.scope) throw new AccountChangedError();
     this.reads.set("workflows", ++this.nextRead); this.reads.set("detail", ++this.nextRead);
     this.set({ detail: null, workflows: { ...this.state.workflows, loading: false, items: this.state.workflows.items.filter((item) => item.id !== id) } });
+    this.resultsChanged();
   }
 }

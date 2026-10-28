@@ -36,6 +36,7 @@ const clarificationWorkflow: ApiWorkflow = {
   analysis_status: "analyzed",
 };
 const clarification: ApiAnalysis = {
+  rules_version: "SIMULATED-NO-RULES-RUN", ml_reason: null, guidance_reason: "SIMULATED-REFERENCE", safety_reasons: [],
   id: "98122d0b-bafd-4c66-8f08-49dd91467b7e",
   workflow_id: clarificationWorkflow.id,
   baseline_version: 1,

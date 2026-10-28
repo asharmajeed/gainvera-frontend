@@ -7,6 +7,7 @@ export type AnalysisExample = "live_ai" | "reviewed_fallback" | "abstained" | "u
 export function analysisExample(kind: AnalysisExample): ApiAnalysis {
   const successful = kind === "live_ai" || kind === "reviewed_fallback";
   return {
+    rules_version: "SIMULATED-NO-RULES-RUN", ml_reason: null, guidance_reason: "SIMULATED-REFERENCE", safety_reasons: [],
     id: "98122d0b-bafd-4c66-8f08-49dd91467b7e",
     workflow_id: "f1393f14-ee79-4eae-8e31-dff6743aeb38", baseline_version: 1,
     task_family: successful ? "catalog_copy" : null,

@@ -1,7 +1,9 @@
 import type {
   ApiFieldIssue,
+  ApiAnalyzeInput,
   ApiMeasurementInput,
   ApiScenarioInput,
+  ApiScenarioSaveInput,
   ApiWorkflowCreate,
   ApiWorkflowPatch,
   ApiWorkspaceCreate,
@@ -115,6 +117,17 @@ export function scenarioInputBody(input: ApiScenarioInput): ApiScenarioInput {
     monthly_tool_fees: number(input.monthly_tool_fees, "monthly_tool_fees", 1_000_000),
     monthly_maintenance_hours: number(input.monthly_maintenance_hours, "monthly_maintenance_hours", 744),
   };
+}
+
+export function analyzeInputBody(input: ApiAnalyzeInput): Required<ApiAnalyzeInput> {
+  return { baseline_version: version(input.baseline_version), guidance_preference: choice(input.guidance_preference ?? "auto", "guidance_preference", ["auto", "reviewed_playbook"]) };
+}
+
+export function scenarioSaveBody(input: ApiScenarioSaveInput): ApiScenarioSaveInput {
+  if (!Object.hasOwn(input, "expected_updated_at") || (input.expected_updated_at !== null &&
+      (typeof input.expected_updated_at !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(input.expected_updated_at))))
+    throw new ApiInputError("expected_updated_at", "Supply null for a first save or the exact saved timestamp, including its timezone.");
+  return { ...scenarioInputBody(input), analysis_id: uuid(input.analysis_id, "analysis_id"), expected_updated_at: input.expected_updated_at };
 }
 
 export function measurementInputBody(input: ApiMeasurementInput): Required<ApiMeasurementInput> {

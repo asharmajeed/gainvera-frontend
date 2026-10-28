@@ -4,6 +4,55 @@ Newest task first. Add one entry for each task that changes files or an agreed
 project decision. Keep the context snapshot current separately. Do not rewrite
 older results or report a previous test run as a new one.
 
+## 2026-10-28 — Member B — combined acceptance PASS (coordination update)
+
+- Fresh final frontend lint/typecheck/85 tests/build and npm audit zero findings
+  passed against A's complete working tree. Backend 200 tests (3 hosted), 26 SQL,
+  C integrity checks and the real combined two-user browser/API journey passed.
+- Application sources, locks, agency persistence/calculations and A's work are
+  unchanged. Four authoritative contract hashes match; both tested source hashes
+  remained stable. Updated only current coordination/verification pointers here;
+  full evidence is in the companion backend docs/FINAL_ACCEPTANCE.md.
+- Real restore/conflict/history/report/isolation/layout and sign-out checks pass;
+  only this run's named disposable workspaces cleaned, prior records preserved.
+- No further member implementation needed for accepted local reviewed fallback.
+  Uncommitted/unpublished state remains separate; provider/deployment/store actions/
+  training/real-world savings are outside scope. A's earlier log remains historical.
+
+## 2026-10-28 — Member A — real API v2 account results and acceptance handoff
+
+- Implemented: current backend state envelopes and provenance, reviewed analysis,
+  exact per-analysis scenario CAS/restoration and authoritative negative/null ROI,
+  paginated original baselines/measurements, distinct duplicate conflicts,
+  complete server dashboard and bearer-fetch HTML/Blob downloads. Extended account/
+  workspace/workflow cancellation and late-error guards. Drafts survive recoverable
+  conflicts; uncertain writes require refetch and explicit reconciliation.
+- Paths: API types/client/validation/adapters and new runtime decoder; composed
+  account results store; account result components/forms/styles; 15 new focused
+  v2 tests. Existing agency storage/calculations and explicit fixtures preserved.
+  Refreshed B's API references with local revision/hash provenance. Updated setup,
+  context, verification and A handoff; added MVP handoff/changed-file manifest and
+  actual screenshots. Fixed Next.js 16.4.0 and Zod advisories using Next.js/lint
+  config 16.4.3 and transitive Zod 4.6.7, with install scripts disabled.
+- Actual checks: lint/typecheck pass; 85 tests pass (zero fail/skip); production
+  build passes; npm audit returns zero vulnerabilities. Real browser journey on
+  3100→8000 passed, including restore/edit, same-baseline rerun, negative ROI,
+  409 draft reconciliation, historical $20-cost measurement after $80-cost edit,
+  duplicate protection, cursor pages, full dashboard and authenticated report.
+  Two users, same-origin switching/cross-tab sign-out, 14 direct cross-owner 404
+  reads, desktop/mobile and preservation of six agency records verified.
+- Limits/resolved failures: sandbox blocked initial Turbopack path resolution;
+  permitted normal-access build succeeded. Initial type/JSX lint issues corrected.
+  First isolation script lacked httpx; standard-library retry passed. npm audit
+  initially hit sandbox DNS; network-enabled check found/fixed advisories. Mobile
+  sizing required a selected visible tab. Failure/expiry/late-response branches
+  are injected evidence, not live outages. No backend/SQL suite or deployment run.
+- Handoff: B performs final combined acceptance using the exact two local working
+  trees; no backend source/schema/C-owned data changed by A and no C blocker found.
+  Three disposable workflows deleted, accounts signed out; two empty named QA
+  workspaces remain because there is no workspace DELETE API. The entire MVP is
+  not declared complete. Details: `docs/MVP_HANDOFF.md`, `VERIFICATION.md`.
+
 ## 2026-10-22 — Cross-member — separate frontend and backend/data repository copies
 
 - Result: prepared `github/gainvera-frontend/` and `github/gainvera-backend/`

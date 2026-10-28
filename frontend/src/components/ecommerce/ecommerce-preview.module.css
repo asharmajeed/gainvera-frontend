@@ -1,4 +1,17 @@
 .preview { --ink: #153b3a; --green: #186d60; --soft: #f4f6f2; min-height: 100vh; color: #243d3b; background: var(--soft); font-size: 14px; }
+.serverResult { padding: 20px 0; line-height: 1.7; }
+.serverResult h3, .serverResult h4 { margin: 20px 0 10px; }
+.serverResult ul, .serverResult ol, .accountResultPanel ul, .accountResultPanel ol { padding-left: 22px; }
+.serverResult li, .accountResultPanel li { margin: 6px 0; }
+.provenance { white-space: pre-wrap; overflow-wrap: anywhere; background: #f2f5ed; border: 1px solid #cbd8c8; padding: 14px; border-radius: 8px; font-size: 12px; }
+.accountResultPanel[hidden] { display: none; }
+.accountResultPanel h3 { font-size: 20px; margin: 20px 0 12px; }
+.accountResultPanel h4 { font-size: 16px; margin: 16px 0 10px; }
+.accountResultPanel details { margin: 20px 0; overflow-wrap: anywhere; }
+.accountResultPanel summary { cursor: pointer; font-weight: 600; }
+.accountResultPanel code { overflow-wrap: anywhere; font-size: 12px; }
+.accountResultPanel .form { padding: 20px 0; }
+.overview button, .accountToolbar button { overflow-wrap: anywhere; }
 .accountTitle { font-size: clamp(28px, 4vw, 44px); margin: 12px 0 24px; letter-spacing: -1px; }
 .accountCard { background: white; border: 1px solid #dce3d8; border-radius: 12px; max-width: 560px; margin: 28px auto; padding: 28px; }
 .accountCard h2 { font-size: 24px; margin-bottom: 12px; }

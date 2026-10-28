@@ -9,6 +9,8 @@ import { AccountChangedError, AccountStore, type AccountState } from "@/lib/acco
 import { Modal, number } from "../ui";
 import { PreviewWorkflowForm, PreviewWorkspaceForm } from "./ecommerce-forms";
 import { FailureNotice } from "./recommendation-view";
+import { AccountWorkflowResults } from "./account-workflow-results";
+import { AccountDashboard } from "./account-result-presentation";
 import styles from "./ecommerce-preview.module.css";
 
 export default function AccountWorkspace() {
@@ -33,7 +35,7 @@ export default function AccountWorkspace() {
     <div className={styles.mainShell}><header className={styles.topbar}><div>E-commerce / Account workspaces</div>{state.phase === "signed_in" && <button className={styles.signIn} disabled={state.authBusy} onClick={() => void store.signOut()}>Sign out</button>}</header>
       <main id="account-main" className={styles.main}>
         <h1 className={styles.accountTitle}>Your store workspace</h1>
-        <p className={styles.formNote}>Real Supabase sign-in and account storage. Analysis, scenarios, measurements, dashboard and reports are not connected in this account screen.</p>
+        <p className={styles.formNote}>Real account workspaces, reviewed guidance, scenario estimates and self-reported outcomes. Recommendations do not perform store actions. Capacity value is not guaranteed cash savings.</p>
         {state.phase === "restoring" ? <p role="status" className={styles.empty}>Restoring your session…</p>
           : state.phase === "unavailable" ? <section className={styles.error} role="alert"><h2>Account connection unavailable</h2><p>{state.authMessage}</p><ul>{store.configuration.issues.map((item) => <li key={item}>{item}</li>)}</ul>{store.configuration.issues.length > 0 && <p>Configure ignored frontend/.env.local, then restart/rebuild.</p>}<p>No credentials are collected here.</p></section>
           : state.phase === "signed_in" ? <SignedInWorkspace key={state.generation} store={store} state={state} />
@@ -65,6 +67,7 @@ function SignedInWorkspace({ store, state }: { store: AccountStore; state: Accou
   const [editor, setEditor] = useState<ApiWorkflow | "new" | null>(null);
   const [deleting, setDeleting] = useState<ApiWorkflow | null>(null);
   const [failure, setFailure] = useState<unknown>(null);
+  const [view, setView] = useState<"workflows" | "dashboard">("workflows");
   const workspace = state.workspaces.items.find((item) => item.id === state.workspaceId);
   const error = failure ?? state.error;
   return <>
@@ -81,7 +84,9 @@ function SignedInWorkspace({ store, state }: { store: AccountStore; state: Accou
     {state.workspaces.cursor && <button className={styles.secondary} disabled={state.workspaces.loading || state.busy} onClick={() => void store.loadWorkspaces(true)}>Load more workspaces</button>}
     {error !== null && <FailureNotice error={error} />}
     <p role="status" className={styles.liveStatus}>{state.notice}</p>
-    {workspace && <section className={styles.inventory}>
+    {workspace && <div className={styles.accountToolbar} aria-label="Account workspace views"><button className={view === "workflows" ? styles.primary : styles.secondary} onClick={() => setView("workflows")}>Workflow inventory</button><button className={view === "dashboard" ? styles.primary : styles.secondary} onClick={() => setView("dashboard")}>Dashboard & report</button></div>}
+    {workspace && view === "dashboard" && <AccountDashboard key={`${workspace.id}:${state.dataRevision}`} parent={store} onOpen={(id) => void store.openWorkflow(id)} />}
+    {workspace && view === "workflows" && <section className={styles.inventory}>
       <div className={styles.inventoryHeading}><div><h2>{workspace.name}</h2><p>USD · Saved account workflows · {state.workflows.items.length} loaded</p></div><button className={styles.primary} disabled={state.busy} onClick={() => setEditor("new")}>Add workflow</button></div>
       <div className={styles.accountToolbar}><button className={styles.secondary} disabled={state.workflows.loading || state.busy} onClick={() => void store.loadWorkflows()}>Refresh workflows</button></div>
       {state.workflows.error !== null && <div className={styles.detail}><FailureNotice error={state.workflows.error} /><button className={styles.secondary} onClick={() => void store.loadWorkflows()}>Retry workflow read</button></div>}
@@ -95,10 +100,9 @@ function SignedInWorkspace({ store, state }: { store: AccountStore; state: Accou
     </section>}
     {createWorkspace && <PreviewWorkspaceForm mode="account" onClose={() => setCreateWorkspace(false)} onSave={async (name) => { await store.createWorkspace(name); setCreateWorkspace(false); }} />}
     {editor && state.workspaceId && <AccountWorkflowEditor key={editor === "new" ? `new:${state.workspaceId}` : editor.id} store={store} record={editor === "new" ? undefined : editor} workspaceId={state.workspaceId} onClose={() => setEditor(null)} />}
-    {state.detail && <Modal title={state.detail.name} subtitle={`Saved account record · baseline v${state.detail.baseline_version}`} onClose={() => store.closeDetail()}><div className={styles.detail}>
-      <p>{state.detail.description}</p><dl><div><dt>Monthly workload</dt><dd>{state.detail.hours_per_occurrence} hours × {state.detail.occurrences_per_month}/month</dd></div><div><dt>Hourly cost</dt><dd>USD {state.detail.hourly_cost}</dd></div><div><dt>Tools / pain points</dt><dd>{state.detail.current_tools || "Not specified"} / {state.detail.pain_points || "Not specified"}</dd></div><div><dt>Risk / data</dt><dd>{state.detail.risk} / {state.detail.data_availability}</dd></div><div><dt>Analysis status</dt><dd>{state.detail.analysis_status.replaceAll("_", " ")}</dd></div></dl>
-      <p className={styles.formNote}>Analysis/results are not connected here. No classifier or agency matcher is run. Baseline edits require reanalysis. Historical results must retain their original baseline.</p>
-    </div></Modal>}
+    {state.detail && <Modal title={state.detail.name} subtitle={`Saved account results · baseline v${state.detail.baseline_version}`} onClose={() => store.closeDetail()} wide>
+      <AccountWorkflowResults key={`${state.generation}:${state.workspaceId}:${state.detail.id}`} parent={store} workflow={state.detail} onEdit={(record) => { store.closeDetail(); setEditor(record); }} />
+    </Modal>}
     {deleting && <Modal title="Delete saved workflow?" subtitle={deleting.name} onClose={() => setDeleting(null)}><div className={styles.detail}><p>This permanently deletes this account workflow and its baseline history, analysis, scenarios and measurements.</p>{failure !== null && <FailureNotice error={failure} />}<div className={styles.formFooter}><button className={styles.secondary} disabled={state.busy} onClick={() => setDeleting(null)}>Keep workflow</button><button className={styles.danger} disabled={state.busy} onClick={async () => { try { await store.deleteWorkflow(deleting.id); setDeleting(null); setFailure(null); } catch (error) { if (!(error instanceof AccountChangedError)) setFailure(error); } }}>{state.busy ? "Deleting…" : "Delete account workflow"}</button></div></div></Modal>}
   </>;
 }
